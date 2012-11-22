@@ -1,0 +1,32 @@
+Žádost o poskytnutí statistických informací
+
+Vážení,
+
+rád bych vás tímto požádal o níže popsané informace. Na Fakultě informačních technologií Vysokého učení technického v Brně jsme dostali v předmětu Modelování a simulace za úkol vytvořit simulační studii včetně naprogramování simulátoru. Jako součást zadání byla podmínka sehnání reálných dat pro vstupy a tvorbu simulačního programu.
+
+Jedná se o statistické informace ohledně části výrobby, kde se zpracovávají/vytváří nějaké produkty sekvenčně alespoň na třech strojích/linkách (tj. alespoň 3 výrobní operace). Přičemž bych potřeboval následující údaje:
+* počet vstupních (polo)tovarů za čas pro každý ze strojů
+* počet výstupních (polo)tovarů za čas pro každý ze strojů
+* velikost vstupních a výstupních front/zásobníků (pokud jsou nějaké přítomné) pro každý stroj
+* počet výpadků/poruch jednotlivých strojů za čas
+* počet objednávek výsledného produktu (vycházející z té sekvenční výrobní linky) za čas (u každé i požadované množství výrobků)
+* po jak velkých várkách jsou části objednávek plněny
+* další informace, které považujete pro tuto část výroby za podstatné
+
+Uvedu několik příkladů, aby bylo jasnější o co mám zájem.
+######################################
+Objednávky za srpen a září. V srpnu 10 (první na 50 výrobků, druhá na 350ks, ..., desátá na 95ks), v září 40 (první na 500ks, ..., čtyřicátá na 125ks). Po výrobní hale putují (polo)tovary v bedýnkách o kapacitě 6ks. Bedýnky jsou vždy plně zaplněné. Materiál A se vždy doplňuje do prvního stroje 1x za hodinu. První stroj má vstupní zásobník na 20kg materiálu A. Opracování a výroba polotovaru na prvním stroji trvá od 5 do 7 minut. Druhý stroj čeká na výstup prvního stroje. Druhý stroje potřebuje ještě ke svě činnosti materiál B, jež se doplňuje 1x za 2 dny do zásobníku druhého stroje o kapacitě 300l. Druhý stroj opracovává polotovar vždy přesně 3 minuty. Výsledek putuje do třetího stroje, který má vstupní frontu na 100 výrobků. Na tomto stroji dochází k poruchám v průměru 1x za 35 hodin a oprava trvá 40 až 85 minut (než přijede opravář apod.).
+######################################
+Tyto informace jsou všechny čistě fiktivní a zjevně nereálné.
+
+Jsem si plně vědom toho, že se zjevně jedná o citlivé informace, a proto jsem ochoten se po Brně dostavit osobně na konzultaci a případně podepsat nějakou mlčenlivost (s tím, že výsledky budou prezentovány pouze interně na FIT VUTBR). V krajním případě vám mohu nechat vystavit potvrzení od zadavatele projektu, že práce nebude využita na nic jiného než ke studijním účelům.
+
+Nakonec bych vám v případě, že by výsledná práce byla kvalitní, její výsledky zdarma poskytl.
+
+Pokud bystě měli zájem mi vyhovět, odpovězte prosím co nejdříve, nejpozději však do 4 pracovních dní. Můžete mě kontaktovat i na tel. 731251966.
+
+Děkuji a jsem s pozdravem
+
+Jan Pacner
+
+vim: set wrap:
