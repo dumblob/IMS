@@ -8,6 +8,7 @@
 
 #include <simlib.h>
 #include <iostream>
+#include <assert>
 //#include <fstream>
 //using namespace std;
 
@@ -30,9 +31,9 @@ const unsigned int ORDINARY_ORDER = 20;
 const unsigned int ADVERT_LETTERS = 4;
 /* volume (in letters) of one crate */
 const unsigned int CRATE_VOL_MAX = 8;
-const unsigned int PLEXI_SHEET_PARTS = 55;
+const unsigned int PLEXI_SHEET_PARTS = 110;
 const unsigned int COMPLETION_EMPLOEES = 2;
-const unsigned int STAKE_CAPACITY = 40;
+const unsigned int STAKES_CAPACITY = 48;
 unsigned int OrderID = 0;
 Histogram Table0("Muj nazev", 0, 0.1, 20); //FIXME
 
@@ -95,10 +96,73 @@ class GrinderC: public Facility
     }
 };
 
+/* fifo batch */
+class Batch: public Process
+{
+  protected:
+    Queue q;
+    Facility *fac;
+    int len;
+
+    Behavior()
+    {
+      for (;;)
+      {
+        if (Busy())
+        {
+          Seize(fac);
+          Wait(Time + Duration());
+          Release(fac);
+
+          /* "atomic" operation */
+          while (! q.Empty())
+            q.GetFirst()->Activate();
+        }
+
+        Passivate();
+      }
+    }
+  public:
+    Batch(Facility *_fac, int _len) fac(_fac), len(_len) { };
+
+    virtual int Duration()
+    {
+      return 0;
+    }
+
+    static bool Busy()
+    {
+      return q.Length() == len;
+    }
+
+    static void AddAndPassivate(Entity *item)
+    {
+      assert(! Busy());
+      item->Passivate();
+      q.InsLast(item);
+      Activate();
+    }
+};
+
 Facility Plotter("Plexiglass plotter");
 GrinderC Grinder("Plexiglass grinder");
-Facility Paintshop("Plexiglass letters paintshop");
 Facility Desks[COMPLETION_EMPLOEES];
+Facility Paintshop("Plexiglass letters paintshop");
+
+class PlotterBatchC() : public Batch
+{
+  public:
+    /* one plexi sheet insist 95 minutes of cutting */
+    int Duration() { return 95 + Uniform(50, 70); };
+  /* at least (PLEXI_SHEET_PARTS / CRATE_VOL_MAX) crates are needed for
+      one plotter run */
+} PlotterBatch(Plotter, PLEXI_SHEET_PARTS / CRATE_VOL_MAX);
+
+class PaintshopBatchC() : public Batch
+{
+  public:
+    int Duration() { return Uniform(25, 35); };
+} PaintshopBatch(Paintshop, STAKES_CAPACITY / CRATE_VOL_MAX);
 
 /* prepravka /bedna/ */
 class Crate: public Process
@@ -110,47 +174,25 @@ class Crate: public Process
 
     void Behavior()
     {
-      if (Plotter.Busy())
-      {
-        /* -1 because one crate already seized the Plotter */
-        if (Plotter.QueueLen() >= PLEXI_SHEET_PARTS / CRATE_VOL_MAX +
-            ((PLEXI_SHEET_PARTS % CRATE_VOL_MAX == 0) ? 0 : 1) -1)
-        {
-          /* tell the crate within the plotter, that the batch is
-             complete and plot can start */
-          //FIXME klidne tedka muze byt provadeno rezani na plotteru (takze
-          //  je Busy, ale tim padem je ten proces uz aktivovany a ten
-          //  aktualni by se mel naplanovat s casem rezani 0)
-          Plotter.in->Activate();
-          //plotter_batch_start->BatchCanStart();
+      /* -1 because one crate already seized the Plotter */
+      if (Plotter.QueueLen() >= PLEXI_SHEET_PARTS / CRATE_VOL_MAX +
+          ((PLEXI_SHEET_PARTS % CRATE_VOL_MAX == 0) ? 0 : 1) -1)
 
-          /* become the first part of new batch */
-          Seize(Plotter);
-          //FIXME WaitUntil(start_batch);
-          /* cut the plexi sheet */
-          Passivate();
-          Wait(Time + 95 + Uniform(50, 70));
-          Release(Plotter);
-        }
-        else
-        {
-          /* enter the plotter queue and become a member of future batch */
-          //FIXME fail!
-std::cerr << "[" << parent->id << "] short SEIZE " << Time << "\n";//FIXME
-          Seize(Plotter);
-          //Wait(0);
-          Release(Plotter);
-std::cerr << "[" << parent->id << "] short RELEA " << Time << "\n";//FIXME
-        }
-      }
-      else
-      {
-        Seize(Plotter);
-        /* cut the plexi sheet */
-        Passivate();
-        Wait(Time + 95 + Uniform(50, 70));
-        Release(Plotter);
-      }
+      //FIXME doc: protoze je plotter uplne prvni device na ceste a nebyly
+      //  pri realnem pouzivani zaznamenane zadne potize (vypadky apod.),
+      //  muzeme si dovolit abstrakci, ze plotter neceka na jisty pocet
+      //  bedynek (aby mohl nacnout a rozrezat novou plexi desku), ale
+      //  zpracovava zakazku (rozdelenou do bedynek) ihned
+      //  vzhledem k cene pouziteho materialu nelze canit plexi desky, tudiz
+      //  neni mozne pro kazdou objednavku zvlast sehnat do plotteru dany pocet
+      //  desek zaokrouhleny nahoru na nejblizsi cele cislo
+
+      Seize(Plotter);
+      /* one plexi sheet insist 95 minutes of cutting
+         at least (PLEXI_SHEET_PARTS / CRATE_VOL_MAX) crates needed for
+           one plexiglass sheet */
+      Wait(Time + (95 + Uniform(50, 70)) / (PLEXI_SHEET_PARTS / CRATE_VOL_MAX));
+      Release(Plotter);
 
       if (Grinder.failed())
       {
@@ -162,39 +204,16 @@ std::cerr << "[" << parent->id << "] short RELEA " << Time << "\n";//FIXME
       Wait(Time + CRATE_VOL_MAX * Uniform(10, 15));
       Release(Grinder);
 std::cerr << "[" << parent->id << "] after grinder\n"; //FIXME
+
       /* 9 paint layers */
       for (int i = 0; i < 9; ++i)
       {
 std::cerr << "[" << parent->id << "] painting layer " << i << "\n"; //FIXME
-        if (Paintshop.Busy())
-        {
-          if (Paintshop.QueueLen() >= STAKE_CAPACITY / CRATE_VOL_MAX +
-              ((STAKE_CAPACITY % CRATE_VOL_MAX == 0) ? 0 : 1) -1)
-          {
-            Paintshop.in->Activate();
-            // FIXME paintshop_batch_start->BatchCanStart();
-
-            Seize(Paintshop);
-            Passivate();
-            Wait(Time + Uniform(25, 35));  /* painting */
-            Release(Paintshop);
-          }
-          else
-          {
-            //FIXME fail?
-            Seize(Plotter);
-            //Wait(0);
-            Release(Plotter);
-          }
-        }
-        else
-        {
-          Seize(Paintshop);
-          Passivate();
-          //FIXME chybovost lakovani!
-          Wait(Time + Uniform(25, 35));  /* painting */
-          Release(Paintshop);
-        }
+        //FIXME chybovost lakovani!
+        Seize(Paintshop);
+        Passivate();
+        Wait(Time + Uniform(25, 35));  /* painting */
+        Release(Paintshop);
 
         /* next layer first after 60 minutes */
         Wait(Time +60);
