@@ -1,0 +1,14 @@
+prvně máme hodnocení zadnaého zadání, jeho přepis do formální algebraického
+  jazyka, potom dokazovaní shody převody, že převod i zdání je jendoznačné,
+  dále dokazování, že zadání neodporuje fyzikálním zákonům a je v e shodě
+  s teorií, hodnocení úplnosti, hodnocení a dokaování jednoznačné
+  algoritmizovatlenosti zadání, dále pro zvolené vývojové prostředí dokazování,
+  že jde provést převod z fomalního jazyka do programovacího jazyka, opět
+  dokazování jendoznačné převoditelnosti, ověřování, shodné přeložitelnosti a
+  zpětného převodu, bokem hodnocení spolehlivosti vývojového prostředí,
+  analýza zjištěných chyb a chybovosti vývojového prostředí, pak to konečně
+  můžeme přeložit, dokazování funkčnosti a ověřování nepoužití zakázaných
+  konstrukcí a postupů, zdokumentoaní všech vstupů a výstupů, popis věech
+  vnitřních algoritmů, následuje popisy všech testů a vyjadřovaní shody
+  testů a jak velké procento všech možných stavů systémů to popisuje atd.
+

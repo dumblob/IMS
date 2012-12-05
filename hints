@@ -1,0 +1,101 @@
+simulacni studie (nemusi byt dlouha, ale musi tam byt vse - minimalisticky)
+  == technicka//vedecka zprava
+  fakta, koncepce, rozhodnuti, zduvodneni, experimenty, overeni, zavery,
+    doporuceni atd.
+  => povinna struktura na strankach
+    za nedodrzeni ztrata bodu
+    uvod
+      viz. slajdy
+      chceme potvrdit/vyvratit hypotezu
+      spravnost byla overena na tomto a tomto pripade (+ reference atd.)
+      hned slibit, ze vychazime z praci, ktere jsou provereny casem
+        autori, literatura, konzultant atd.
+      nakonec ctenar ma mit prehled co se docte a musi byt nakloneni memu
+        reseni
+      t
+    fakta (vsechno co se o veci vi + vse dohledatelne => mnoho citaci apod.)
+      cislo, udaj, hodnota atd. - vsude odkaz!!!
+      oddelit hypotezy/predpoklady od faktu!!!
+      necht je hodnota takova a z toho my usuzujeme...
+    koncepce (muj zvoleny postup, moje rozhodnuti apod.)
+      == muj abstraktni model
+      == extrakce z faktu
+      kdyz neco chybi, musim si to dodelat + zduvodnit, ze to je spravne
+      zjednoduseni zduvodnit (ze to nema vliv na vysledky)
+      musi to pochopit libovolny technik ne-programator!!!
+      koncepce algoritmu (datove struktury, proc tyhle atributy, proc to tak
+        mam)
+      popisovat pseudo kodem nebo matematicky
+      vyvojovy diagram radeji ne (radeji zadne UML apod.)
+    zpusob reseni (je nejkratsi - par malych detailu, nic vic)
+      NEni typicke vubec software davat ven
+      NEni to referencni prirucka (tzn. zadne )
+      napr. kratke matematicke konstrukce zapsane v mem programu velice
+        zajimave
+      napr. jak se spousti muj program a co znamenaji vypisy
+    testovani/experimenty (...)
+      co chci zjistit
+      dosahli jsme toho?
+      test != experiment
+        mereni != experiment
+        mereni != test
+        test == overeni validity/hypotezy
+        experiment == pokus, kde vubec nevim jak dopadne
+      jasne dane zpusoby experimentu
+        jake vstupy
+        jake vystupy
+      dokumentace experimentu
+        vysledek experimentu zvyraznit tak, aby si ho ctenar vsimnul!
+          napr. sipka v grafu apod.
+        popsane osy grafu (vcetne kalibrace - jednotky)
+        ...
+    zaver (co jsme svetu rekli)
+      rict vysledek nasi prace
+      viz. slajdy
+      zadna filozoficka uvaha (!)
+      zadna informace o poctu radku, apod.
+  nasledujici otazky nejlepe zodpovedet uz v uvodu
+    co se resi?
+    proc se to resi?
+    jak se to resi?
+    jaky je vysledek nebo zaver?
+    k cemu je vysledek/zaver dobry?
+    proc ma odberatel verit vysledku?
+      model validni, vysledky plati (muze jim duverovat), atd.
+
+projekt odevzdava pouze zastupce tymu
+
+konzultace
+  seminar
+  forum
+  osobni
+  email
+
+jeden soubor (tar.gz zip)
+  zdrojaky s komentari BEZ diakritiky
+  Makefile (make - prelozi; make run - spusti)
+  obrazky, grafy atd. tam bude
+  dokumentace PDF
+
+pouze v C/C++
+  SIMLIB (zadani 3-10)
+  overit na merlin nebo eva (musi jit prelozit + spustit)
+
+SHO
+  petriho site radeji moc nepouzivat, protoze musi muj kod 1:1 kopirovat
+    tento abstraktni model
+  petriho sit nesmi byt vetsi nez 1 A4
+  petriho sit neni nutna, pokud bude kvalitni koncepce a fakta
+  prehledne zobrazeni relevantnich faktu, vyznamne casti (prehledove) napr.
+    pomoci petriho siti
+
+4. SHO
+  najit existujici firmu (nabytek, zelezny vylisek, plastove vyrobky)
+  vyrobni operace
+  prepravni varky
+  jeden si objedna 100ks, druhy 1000ks
+  vytizenost linek, vypadky stoju, bottlnecky provozu atd.
+  vychazet fakt z realu (napr. nenaplnena varka apod.)
+    a nebo "styl vyroby umoznuje a proto to modeluji takto"
+  vzit z realu tak, abych to mel podlozene (cisla, casy, mnozstvi apod.)
+  napr. objednavky prichazi v mesici prumerne 4x denne atd.
