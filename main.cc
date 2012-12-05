@@ -46,6 +46,7 @@ Facility Plotter("Plexiglass plotter");
 GrinderC Grinder("Plexiglass grinder");
 Facility Paintshop("Plexiglass letters paintshop");
 Facility Desks[COMPLETION_EMPLOEES];
+WorkingHoursC *WorkingHours = NULL;
 
 /** WorkingHoursC */
 //WorkingHoursC::WorkingHoursC(Priority_t _p) :
@@ -193,7 +194,9 @@ void Batch::Behavior()
     if (Busy())
     {
       Seize(fac);
+      waiting = true;  //FIXME
       Wait(Duration());
+      waiting = false;
       Release(fac);
 
       for (int i = len; i != 0; --i)
@@ -205,7 +208,7 @@ void Batch::Behavior()
 }
 
 Batch::Batch(Facility &_fac, unsigned int _len) :
-  fac(_fac), len(_len), Process()
+  fac(_fac), len(_len), Process(), waiting(false)
 {
   Activate();
 }
@@ -229,8 +232,10 @@ bool Batch::Busy()
 
 void Batch::AddAndPassivate(Process *item)
 {
+  std::cerr << "---------------- pridavam do Q\n";//FIXME
   q.InsLast(item);
-  Activate();
+  std::cerr << "---------------- konec pridavani do Q\n";//FIXME
+  if (! waiting) Activate();
   item->Passivate();
 }
 
@@ -281,7 +286,7 @@ void Order::Alloc(Entity::Priority_t _prior, int _count)
   new Order(_prior, _count);
 }
 
-/** Crate (bedna, prepravka) */
+/** Crate */
 void Crate::Behavior()
 {
   PlotterBatch.AddAndPassivate(this);
@@ -343,13 +348,13 @@ int main()
   //SetOutput(stdout);
   //Print("some fucking desc\n");
 
-  Debug(4);
+  Debug(5);
 
   /* 2 weeks */
   //Init(0, 12);//FIXME
   Init(0, (2 * 7) * 24 * 60);
   Generator *G = new Generator(Order::Alloc);
-  new WorkingHoursC(*G);
+  WorkingHours = new WorkingHoursC(*G);
   //new WorkingHoursC(MAX_ORDER_PRIOR +1);//FIXME
   Run();
 

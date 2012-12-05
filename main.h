@@ -51,6 +51,7 @@ class Batch: public Process
     Queue q;
     Facility &fac;
     const int len;
+    bool waiting;
     void Behavior();
 
   public:
