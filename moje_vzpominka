@@ -31,16 +31,16 @@ plexi desky (objednavka vzdy 1x za 4 dny na aktualne potrebny pocet kusu,
   tyto desky maji casto vady (pohledova strana plexi neni uplne rovna a vypada
       to blbe)
     coz zpusobi, ze brusic pred zapocetim brouseni 1 ks (pismena) kontroluje
-      tuto kvalitu a z jedne bedynky/prepravky je exp(0..3) (tzn. az
-      cca 5%) na vyhozeni a musi se zahodit (ztrata)
-plotter desku zpracovaval vzdy presne 95 minut presne + 50..60 hod obsluha (vyber +
+      tuto kvalitu a z jedne bedynky/prepravky je exp(15) (tzn. az 50%) na
+      vyhozeni a musi se zahodit (ztrata)
+plotter desku zpracovaval vzdy presne 95 minut presne + 1 hod obsluha (vyber +
     cisteni vyrezanych dilu, cisteni plotteru a priprava dalsi desky na dalsi
     plot)
-  z 1 desky je 85 dilu
+  z 1 desky je 55 dilu
   plotter k dispozici neustale na pozadani
 po 30ks do prepravek (mame zde 3 prepravky)
 brouseni 1 ks Norm(10-15) min
-  zniceni nastroje brouseni 1x za 50-80 ks (tzn. vypadek)
+  zniceni nastroje brouseni 1x za 60-70 ks (tzn. vypadek)
   vymena + vyroba toho specialniho nastroje trva 20-30 min.
 po 10ks na 1 tyc pro lakovani (viz. nize - nekonecno/50 tyci)
 lakovani po 40 ks, ale 9 vrstev (=> 9x)
