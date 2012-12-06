@@ -57,17 +57,16 @@ class GrinderFailureC : public Process
 class Batch: public Process
 {
   protected:
-    //Queue q; //FIXME
-    std::list<Entity *> l;
+    Queue q;
     Facility &fac;
     const int len;
-    bool waiting;
     void Behavior();
     bool Busy();
     virtual int Duration();
     virtual int GetFailureIndex();
 
   public:
+    bool waiting;
     Batch(Facility &, unsigned int);
     void Output();
     void AddAndPassivate(Process *);

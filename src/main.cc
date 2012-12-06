@@ -9,6 +9,8 @@
 #include <simlib.h>
 #include <iostream>
 #include <assert.h>
+#include <stdio.h>
+#include <math.h>
 #include "main.h"
 //#include <fstream>
 
@@ -38,67 +40,7 @@ Facility Plotter("Plexiglass plotter");
 GrinderC Grinder("Plexiglass grinder");
 Facility Paintshop("Plexiglass letters paintshop");
 Facility Desks[COMPLETION_EMPLOEES];
-WorkingHoursC *WorkingHours = NULL;
 GrinderFailureC GrinderFailure(Grinder);
-
-/** WorkingHoursC */
-//WorkingHoursC::WorkingHoursC(Priority_t _p) :
-//  Process(_p)
-WorkingHoursC::WorkingHoursC(Generator &_g) :
-  Process(), generator(_g)
-{
-  Activate();
-}
-
-#define SEIZE_ALL_FACILITIES { \
-  Seize(Plotter, NON_WORKING_HOURS_SERV_PRIOR); \
-  Seize(Grinder, NON_WORKING_HOURS_SERV_PRIOR); \
-  Seize(Paintshop, NON_WORKING_HOURS_SERV_PRIOR); \
-  for (int j = 0; j < COMPLETION_EMPLOEES; ++j) \
-    Seize(Desks[j], NON_WORKING_HOURS_SERV_PRIOR); \
-}
-
-#define RELEASE_ALL_FACILITIES { \
-  Release(Plotter); \
-  std::cerr << "___ after plotter\n"; \
-  Release(Grinder); \
-  std::cerr << "___ after grinder\n"; \
-  Release(Paintshop); \
-  std::cerr << "___ after paintshop\n"; \
-  for (int j = 0; j < COMPLETION_EMPLOEES; ++j) \
-    Release(Desks[j]); \
-  std::cerr << "___ after both desks\n"; \
-}
-
-/* one week simulation */
-void WorkingHoursC::Behavior()
-{
-  unsigned short days_in_week = 7;
-  assert(WORKING_DAYS_IN_WEEK <= days_in_week);
-  assert(WORKING_HOURS_N <= 24);
-
-  for (;;)
-  {
-    /* 5 working days */
-    for (int i = 0; i < WORKING_DAYS_IN_WEEK; ++i)
-    {
-      Wait(WORKING_HOURS_N * 60);
-
-      generator.sleeping = true;
-      SEIZE_ALL_FACILITIES;
-      Wait((24 - WORKING_HOURS_N) * 60);
-      RELEASE_ALL_FACILITIES;
-      generator.sleeping = false;
-    }
-
-    /* saturday, sunday */
-    generator.sleeping = true;
-    SEIZE_ALL_FACILITIES;
-    Wait((days_in_week - WORKING_DAYS_IN_WEEK) * 24 * 60);
-    RELEASE_ALL_FACILITIES;
-    generator.sleeping = false;
-  }
-}
 
 /** PlotterBatchC */
 class PlotterBatchC : public Batch
@@ -117,10 +59,15 @@ class PaintshopBatchC : public Batch
 {
   protected:
     int Duration() { return Uniform(45, 65); };
+    //FIXME ...
+    //void ThisCrateFailed()
+    //{
+    //  return Random() < (1.0 / 2 / CRATE_VOL_MAX)
+    //}
     int GetFailureIndex()
     {
       /* does the lackquer failure occured in some crate? */
-      if (Random() < (double(1) / 2 / CRATE_VOL_MAX))
+      if (Random() < (1.0 / 2 / CRATE_VOL_MAX))
         /* index into queue pointing to failed crate */
         return Random() * len;
       else
@@ -130,6 +77,65 @@ class PaintshopBatchC : public Batch
     PaintshopBatchC(Facility &_fac, unsigned int _len) :
       Batch(_fac, _len) { }
 } PaintshopBatch(Paintshop, STAKES_CAPACITY / CRATE_VOL_MAX);
+
+/** WorkingHoursC */
+WorkingHoursC::WorkingHoursC(Generator &_g) :
+  Process(), generator(_g)
+{
+  Activate();
+}
+
+#define SEIZE_ALL_FACILITIES { \
+  Seize(Plotter, NON_WORKING_HOURS_SERV_PRIOR); \
+  Seize(Grinder, NON_WORKING_HOURS_SERV_PRIOR); \
+  Seize(Paintshop, NON_WORKING_HOURS_SERV_PRIOR); \
+  for (int j = 0; j < COMPLETION_EMPLOEES; ++j) \
+    Seize(Desks[j], NON_WORKING_HOURS_SERV_PRIOR); \
+}
+
+#define RELEASE_ALL_FACILITIES { \
+  Release(Plotter); \
+  Release(Grinder); \
+  Release(Paintshop); \
+  for (int j = 0; j < COMPLETION_EMPLOEES; ++j) \
+    Release(Desks[j]); \
+}
+
+/* one week simulation */
+void WorkingHoursC::Behavior()
+{
+  unsigned short days_in_week = 7;
+  assert(WORKING_DAYS_IN_WEEK <= days_in_week);
+  assert(WORKING_HOURS_N <= 24);
+
+  for (;;)
+  {
+    /* 5 working days */
+    for (int i = 0; i < WORKING_DAYS_IN_WEEK; ++i)
+    {
+      Wait(WORKING_HOURS_N * 60);
+
+      generator.sleeping = true;
+      //FIXME tohle dat do studie k batch reseni
+      /* no need to pause plotter, because generator is paused */
+      PaintshopBatch.waiting = true;
+      SEIZE_ALL_FACILITIES;
+      Wait((24 - WORKING_HOURS_N) * 60);
+      RELEASE_ALL_FACILITIES;
+      PaintshopBatch.waiting = false;
+      generator.sleeping = false;
+    }
+
+    /* saturday, sunday */
+    generator.sleeping = true;
+    PaintshopBatch.waiting = true;
+    SEIZE_ALL_FACILITIES;
+    Wait((days_in_week - WORKING_DAYS_IN_WEEK) * 24 * 60);
+    RELEASE_ALL_FACILITIES;
+    PaintshopBatch.waiting = false;
+    generator.sleeping = false;
+  }
+}
 
 /** Generator */
 void Generator::Behavior()
@@ -160,7 +166,7 @@ GrinderC::GrinderC(const char *_s) :
 
 void GrinderC::Output()
 {
-  std::cerr << "grinded letters in current failure run: " << cur_n << "\n";
+  //FIXME merit tohle?
   Facility::Output();
 }
 
@@ -192,7 +198,6 @@ void GrinderFailureC::Behavior()
 {
   for (;;)
   {
-    std::cerr << "grinder failure occured\n";//FIXME
     Seize(fac, GRINDER_FAILURE_SERV_PRIOR);
     /* creation and exchange of new tool */
     Wait(Uniform(20, 30));
@@ -217,34 +222,29 @@ void Batch::Behavior()
       Seize(fac);
       waiting = true;  //FIXME tohle dat do dokumentace implementace
       Wait(Duration());
-      waiting = false;
       Release(fac);
+      waiting = false;
 
       int x = GetFailureIndex();
-      std::cerr << "batch failure index " << x << "\n";//FIXME
       Entity *failure_item = NULL;
       Entity *item = NULL;
 
       /* descending, although no process can switch context and change
          the len in between */
-      //for (int i = len; i != 0; --i)//FIXME
-      for (int i = 0; i < len; ++i)
+      for (int i = len; i > 0; --i)
       {
-        //item = q.GetFirst();
-        item = l.front();
-        l.pop_front();
+        item = q.GetFirst();
 
+        //FIXME ...
         if (x == i)
           failure_item = item;
         else
           item->Activate();
       }
 
-      /* the failed crate has the highest priority */
+      /* the failed crate has sort of highest priority */
       if (failure_item != NULL)
-        //FIXME
-        //q.InsFirst(failure_item);
-        l.push_front(failure_item);
+        q.InsFirst(failure_item);
     }
 
     if (! Busy()) Passivate();
@@ -259,9 +259,10 @@ Batch::Batch(Facility &_fac, unsigned int _len) :
 
 void Batch::Output()
 {
+  //FIXME merit tohle?
   std::cout << "BATCH len " << len << "\n";
   Process::Output();
-  //q.Output();//FIXME
+  q.Output();
 }
 
 int Batch::Duration()
@@ -276,16 +277,47 @@ int Batch::GetFailureIndex()
 
 bool Batch::Busy()
 {
-  //return q.Length() >= len;
-  return l.size() >= len;
+  return q.Length() >= len;
 }
 
 void Batch::AddAndPassivate(Process *item)
 {
-  //q.InsLast(item);
-  l.push_back(item);
+  q.InsLast(item);
+  //FIXME dat do dokumentace
   if (! waiting) Activate();
   item->Passivate();
+}
+
+/*                        (60.0 * 24.0 * (365.25 / 12.0) * 12.0) */
+#define MINUTES_IN_YEAR   (60.0 * 24.0 * 365.25)
+#define MINUTES_IN_MONTH  (60.0 * 24.0 * (365.25 / 12.0))
+#define MINUTES_IN_DAY    (60.0 * 24.0)
+#define MINUTES_IN_HOUR   (60.0)
+
+/** print time user-friendly from given minutes count */
+void print_duration(double m)
+{
+  double Y = trunc(m / MINUTES_IN_YEAR  ); m -= Y * MINUTES_IN_YEAR;
+  double M = trunc(m / MINUTES_IN_MONTH ); m -= M * MINUTES_IN_MONTH;
+  double D = trunc(m / MINUTES_IN_DAY   ); m -= D * MINUTES_IN_DAY;
+  double h = trunc(m / MINUTES_IN_HOUR  ); m -= h * MINUTES_IN_HOUR;
+
+  /* normalize according to our time management */
+  double tmp;
+  tmp = trunc(h / WORKING_HOURS_N); h -= tmp * WORKING_HOURS_N;
+  D += tmp;
+  tmp = trunc(D / (365.25 / 12.0)); D -= tmp * (365.25 / 12.0);
+  M += tmp;
+  tmp = trunc(M / 12.0); M -= tmp * 12.0;
+  Y += tmp;
+
+  printf("%d years %d months %d days %02d:%02d%s",
+      (int)Y, (int)M, (int)D, (int)h, (int)m,
+      ((int)Y == 0 &&
+       (int)M == 0 &&
+       (int)D == 0 &&
+       (int)h == 0 &&
+       (int)m == 0) ? " (approaching zero)" : "");
 }
 
 /** Order */
@@ -297,8 +329,6 @@ void Order::Behavior()
   int crates = (count * 4) / CRATE_VOL_MAX +
              (((count * 4) % CRATE_VOL_MAX == 0) ? 0 : 1);
 
-  //FIXME mame plny sklad plexi desek (dokumentace: desky objednavany
-  //  v dostatecnem predstihu, takze tady problem nebyl)
   /* divide the order into crates and let them cross the system
      independently */
   for (int i = 0; i < crates; ++i)
@@ -307,31 +337,31 @@ void Order::Behavior()
   /* needed crates */
   int handled_crates = 0;
 
-  // FIXME cekej, az obdrzis signal od vsech crate, ktere jsi vytvoril
   /* wait until all crates are done */
   while (handled_crates < crates)
   {
-std::cerr << "HOWK00 order\n"; //FIXME
     Passivate();
-std::cerr << "HOWK11 order\n"; //FIXME
-    ++crates;
+    ++handled_crates;
+    // FIXME otestovat, zdali to vubec funguje
   }
 
   /* order correctly served */
-  //FIXME vypsat celkovy cas v systemu (duration)
   std::cout << "Order " << id << " with priority " << (int)Priority \
-    << " served in " << Time - t << " minutes.\n";
+    << " served in ";
+  print_duration(Time - t);
+  std::cout << "\n";
 }
 
 Order::Order(Priority_t _prior, int _count) :
   Process(_prior), count(_count), id(OrderID++)
 {
+  std::cerr << "NEW order [" << id << "] for " << _count <<
+    " items with queue prior " << (int)_prior << "\n";//FIXME
   Activate();
 }
 
 void Order::Alloc(Entity::Priority_t _prior, int _count)
 {
-  std::cerr << "new order | queue prior " << (int)_prior << "\n";//FIXME
   new Order(_prior, _count);
 }
 
@@ -345,7 +375,6 @@ void Crate::Behavior()
   for (int i = 0; i < CRATE_VOL_MAX; ++i)
     Wait(Uniform(9, 13));
   Release(Grinder);
-  std::cerr << "[" << parent->id << "] after grinder\n"; //FIXME
 
   /* 9 paint layers */
   for (int i = 0; i < 9; ++i)
@@ -354,21 +383,18 @@ void Crate::Behavior()
     /* next layer after 60 minutes */
     Wait(60);
   }
-  std::cerr << "HOWK33\n"; //FIXME
 
   /* wait for final paint dry; -60 because we already waited that long */
   Wait(Uniform(20, 24) * 60 -60);
 
   /* get some free desk */
   int x = int(COMPLETION_EMPLOEES * Random());
-  std::cerr << "desk chosen: " << x << "\n";//FIXME
 
   Seize(Desks[x]);
   /* finish adverts from the whole crate */
   for (int i = 0; i < CRATE_VOL_MAX / ADVERT_LETTERS; ++i)
     Wait(Uniform(55, 70));
   Release(Desks[x]);
-  std::cerr << "HOWK44\n"; //FIXME
 
   /* we are done */
   parent->Activate();
@@ -389,7 +415,7 @@ int main()
   //SetOutput(stdout);
   //Print("some fucking desc\n");
 
-  Debug(5);
+  //Debug(5);
 
   /* 1 crate can contain only letters for whole advertisements */
   assert(CRATE_VOL_MAX % ADVERT_LETTERS == 0);
@@ -398,28 +424,31 @@ int main()
   //  hlavne jich neni pred grinderem 0..50% zahozenych, nybrz 0..10%)
 
   /* 2 weeks */
-  //Init(0, 12);//FIXME
   Init(0, (4 * 7) * 24 * 60);
   Generator *G = new Generator(Order::Alloc);
-  WorkingHours = new WorkingHoursC(*G);
-  //new WorkingHoursC(MAX_ORDER_PRIOR +1);//FIXME
+  WorkingHoursC *WorkingHours = new WorkingHoursC(*G);
   Run();
+  Print("\n\n");
 
-  //Table0.Output();
+  //tbl00.Output();
   Plotter.Output();
   Print("Plotter batch\n");
   PlotterBatch.Output();
+  Print("\n\n");
 
   Grinder.Output();
+  Print("\n\n");
 
   Paintshop.Output();
   Print("Paintshop batch\n");
   PaintshopBatch.Output();
+  Print("\n\n");
 
   for (int i = 0; i < COMPLETION_EMPLOEES; ++i)
   {
     std::cout << "FACILITY " << i +1 << "\n";
     Desks[i].Output();
+    Print("\n\n");
   }
 
   return 0;
