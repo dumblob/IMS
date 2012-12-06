@@ -6,15 +6,6 @@
  * Date:    2012-12-01 10:56:23 CET
  */
 
-//FIXME TODO
-//  namodelovat pracovni tyden (lze nastavit dobu mezi koncem pracovni smeny
-//    a zacatkem dalsi smeny - napr. pro modelovani vikendu, svatku,
-//    prodlouzenych a zkracenych pracovnich dob apod.)
-//  pridat nahodne chyby v lakovne
-//  obrovsky vypadek elektriny (jako v realu u Drapace)
-//    == proces, ktery proste jednou za cas s nejvyssi prioritou obsadi
-//    vsechna elektronicka zarizeni
-
 #include <simlib.h>
 #include <iostream>
 #include <assert.h>
@@ -27,7 +18,8 @@ int MIN(double x, double y) { return (y > x) ? x : y; }
 const unsigned int WORKING_HOURS_N = 8;
 const unsigned int WORKING_DAYS_IN_WEEK = 5;
 /* service priority */
-const unsigned int NON_WORKING_HOURS_SERV_PRIOR = 99;
+const unsigned int NON_WORKING_HOURS_SERV_PRIOR = 10;
+const unsigned int GRINDER_FAILURE_SERV_PRIOR = 5;
 /* the mean order volume */
 const unsigned int ORDINARY_ORDER = 60;
 /* process (queue) priority */
@@ -47,6 +39,7 @@ GrinderC Grinder("Plexiglass grinder");
 Facility Paintshop("Plexiglass letters paintshop");
 Facility Desks[COMPLETION_EMPLOEES];
 WorkingHoursC *WorkingHours = NULL;
+GrinderFailureC GrinderFailure(Grinder);
 
 /** WorkingHoursC */
 //WorkingHoursC::WorkingHoursC(Priority_t _p) :
@@ -89,18 +82,13 @@ void WorkingHoursC::Behavior()
     /* 5 working days */
     for (int i = 0; i < WORKING_DAYS_IN_WEEK; ++i)
     {
-      //Wait(10);//FIXME
       Wait(WORKING_HOURS_N * 60);
-  std::cerr << "working hours 00\n";//FIXME
 
       generator.sleeping = true;
       SEIZE_ALL_FACILITIES;
-  std::cerr << "working hours 11\n";//FIXME
       Wait((24 - WORKING_HOURS_N) * 60);
-  std::cerr << "working hours 22\n";//FIXME
       RELEASE_ALL_FACILITIES;
       generator.sleeping = false;
-  std::cerr << "working hours 33\n";//FIXME
     }
 
     /* saturday, sunday */
@@ -115,10 +103,11 @@ void WorkingHoursC::Behavior()
 /** PlotterBatchC */
 class PlotterBatchC : public Batch
 {
-  public:
-    PlotterBatchC(Facility &_fac, unsigned int _len) : Batch(_fac, _len) { }
+  protected:
     /* one plexi sheet insist 75 minutes of cutting */
     int Duration() { return 75 + Uniform(25, 55); };
+  public:
+    PlotterBatchC(Facility &_fac, unsigned int _len) : Batch(_fac, _len) { }
   /* at least (PLEXI_SHEET_PARTS / CRATE_VOL_MAX) crates are needed for
       one plotter run */
 } PlotterBatch(Plotter, PLEXI_SHEET_PARTS / CRATE_VOL_MAX);
@@ -126,10 +115,20 @@ class PlotterBatchC : public Batch
 /** PaintshopBatchC */
 class PaintshopBatchC : public Batch
 {
+  protected:
+    int Duration() { return Uniform(45, 65); };
+    int GetFailureIndex()
+    {
+      /* does the lackquer failure occured in some crate? */
+      if (Random() < (double(1) / 2 / CRATE_VOL_MAX))
+        /* index into queue pointing to failed crate */
+        return Random() * len;
+      else
+        return -1;
+    }
   public:
     PaintshopBatchC(Facility &_fac, unsigned int _len) :
       Batch(_fac, _len) { }
-    int Duration() { return Uniform(45, 65); };
 } PaintshopBatch(Paintshop, STAKES_CAPACITY / CRATE_VOL_MAX);
 
 /** Generator */
@@ -137,8 +136,6 @@ void Generator::Behavior()
 {
   if (! sleeping)
   {
-    std::cerr << "NOT sleeping, yeah!\n";//FIXME
-    //FIXME nova objednavka se vzdy vygeneruje po aktivaci - je to dobre?
     /* generate new order (priority, order_volume) */
     alloc(MIN(Exponential(MAX_ORDER_PRIOR / 3), MAX_ORDER_PRIOR),
         MAX(Exponential(ORDINARY_ORDER), 1));
@@ -158,32 +155,56 @@ Generator::Generator(AllocPtr_t _ptr) :
 GrinderC::GrinderC(const char *_s) :
   Facility(_s)
 {
-  scheduleFailure();
+  ScheduleFailure();
 }
 
 void GrinderC::Output()
 {
-  std::cout << "grinded letters: " << cur_n << "\n";
+  std::cerr << "grinded letters in current failure run: " << cur_n << "\n";
   Facility::Output();
 }
 
 void GrinderC::Seize(Entity *e, ServicePriority_t sp=DEFAULT_PRIORITY)
 {
   Facility::Seize(e, sp);
-  cur_n += CRATE_VOL_MAX;
+
+  /* let myself be seized by failure process */
+  if (cur_n >= fail_after)
+  {
+    GrinderFailure.Activate();
+    ScheduleFailure();
+  }
+  else
+  {
+    cur_n += CRATE_VOL_MAX;
+  }
 }
 
-void GrinderC::scheduleFailure()
+void GrinderC::ScheduleFailure()
 {
-  std::cerr << "failer scheduled\n";//FIXME
   /* after N grinded letters */
   fail_after = Uniform(50, 80);
   cur_n = 0;
 }
 
-bool GrinderC::failed()
+/** Grinder failure */
+void GrinderFailureC::Behavior()
 {
-  return cur_n >= fail_after;
+  for (;;)
+  {
+    std::cerr << "grinder failure occured\n";//FIXME
+    Seize(fac, GRINDER_FAILURE_SERV_PRIOR);
+    /* creation and exchange of new tool */
+    Wait(Uniform(20, 30));
+    Release(fac);
+    Passivate();
+  }
+}
+
+GrinderFailureC::GrinderFailureC(GrinderC &_fac) :
+  Process(), fac(_fac)
+{
+  Passivate();
 }
 
 /** Batch */
@@ -194,13 +215,36 @@ void Batch::Behavior()
     if (Busy())
     {
       Seize(fac);
-      waiting = true;  //FIXME
+      waiting = true;  //FIXME tohle dat do dokumentace implementace
       Wait(Duration());
       waiting = false;
       Release(fac);
 
-      for (int i = len; i != 0; --i)
-        q.GetFirst()->Activate();
+      int x = GetFailureIndex();
+      std::cerr << "batch failure index " << x << "\n";//FIXME
+      Entity *failure_item = NULL;
+      Entity *item = NULL;
+
+      /* descending, although no process can switch context and change
+         the len in between */
+      //for (int i = len; i != 0; --i)//FIXME
+      for (int i = 0; i < len; ++i)
+      {
+        //item = q.GetFirst();
+        item = l.front();
+        l.pop_front();
+
+        if (x == i)
+          failure_item = item;
+        else
+          item->Activate();
+      }
+
+      /* the failed crate has the highest priority */
+      if (failure_item != NULL)
+        //FIXME
+        //q.InsFirst(failure_item);
+        l.push_front(failure_item);
     }
 
     if (! Busy()) Passivate();
@@ -215,9 +259,9 @@ Batch::Batch(Facility &_fac, unsigned int _len) :
 
 void Batch::Output()
 {
-  std::cout << "len " << len << "\n";
+  std::cout << "BATCH len " << len << "\n";
   Process::Output();
-  q.Output();
+  //q.Output();//FIXME
 }
 
 int Batch::Duration()
@@ -225,16 +269,21 @@ int Batch::Duration()
   return 0;
 }
 
+int Batch::GetFailureIndex()
+{
+  return -1;
+}
+
 bool Batch::Busy()
 {
-  return q.Length() >= len;
+  //return q.Length() >= len;
+  return l.size() >= len;
 }
 
 void Batch::AddAndPassivate(Process *item)
 {
-  std::cerr << "---------------- pridavam do Q\n";//FIXME
-  q.InsLast(item);
-  std::cerr << "---------------- konec pridavani do Q\n";//FIXME
+  //q.InsLast(item);
+  l.push_back(item);
   if (! waiting) Activate();
   item->Passivate();
 }
@@ -291,14 +340,6 @@ void Crate::Behavior()
 {
   PlotterBatch.AddAndPassivate(this);
 
-  static int abc = 0; ++abc;//FIXME
-  if (Grinder.failed())
-  {
-    std::cerr << "[" << parent->id << "] grinder failed\n"; //FIXME
-    Wait(Uniform(20, 30));
-    if (Grinder.failed()) Grinder.scheduleFailure();
-  }
-
   /* each letter takes its own time */
   Seize(Grinder);
   for (int i = 0; i < CRATE_VOL_MAX; ++i)
@@ -309,10 +350,8 @@ void Crate::Behavior()
   /* 9 paint layers */
   for (int i = 0; i < 9; ++i)
   {
-    //FIXME chybovost lakovani!
     PaintshopBatch.AddAndPassivate(this);
-
-    /* next layer first after 60 minutes */
+    /* next layer after 60 minutes */
     Wait(60);
   }
   std::cerr << "HOWK33\n"; //FIXME
@@ -322,10 +361,12 @@ void Crate::Behavior()
 
   /* get some free desk */
   int x = int(COMPLETION_EMPLOEES * Random());
+  std::cerr << "desk chosen: " << x << "\n";//FIXME
 
   Seize(Desks[x]);
-  //FIXME potrebuji 4 pismenka a ne vsechna co jsou v krabici
-  Wait(Uniform(55, 70));
+  /* finish adverts from the whole crate */
+  for (int i = 0; i < CRATE_VOL_MAX / ADVERT_LETTERS; ++i)
+    Wait(Uniform(55, 70));
   Release(Desks[x]);
   std::cerr << "HOWK44\n"; //FIXME
 
@@ -350,9 +391,15 @@ int main()
 
   Debug(5);
 
+  /* 1 crate can contain only letters for whole advertisements */
+  assert(CRATE_VOL_MAX % ADVERT_LETTERS == 0);
+
+  //FIXME nasimulovat laser (tzn. misto vyrezani laser, coz je ve vysledku rychlejsi, ale
+  //  hlavne jich neni pred grinderem 0..50% zahozenych, nybrz 0..10%)
+
   /* 2 weeks */
   //Init(0, 12);//FIXME
-  Init(0, (2 * 7) * 24 * 60);
+  Init(0, (4 * 7) * 24 * 60);
   Generator *G = new Generator(Order::Alloc);
   WorkingHours = new WorkingHoursC(*G);
   //new WorkingHoursC(MAX_ORDER_PRIOR +1);//FIXME

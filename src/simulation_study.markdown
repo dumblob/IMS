@@ -66,7 +66,7 @@ PostupYYYYYY tvorby modelu
 Modeluji pracovní týden...
 
 FIXME implementovat
-takze (1 / 2 / POCET-PISMEN-V-KRABICI)% pravdepodobnost, ze se nahodne nektere jedno pismeno z batch musi prelakovat; protoze toto pismenko lze nahradit jakymkoliv jinym pismenkem z jakekoliv jine zakazky (i zakazky jine priority), tak se lze predstavit, ze to takhle udelam po sobe tolikrat, az dosahnu poctu pismenek v bedne a pote mohu provest prelakovani jakoby cele bedny
+takze (1 / 2 / POCET-PISMEN-V-KRABICI)% pravdepodobnost, ze se nahodne nektera jedna krabice z batch musi prelakovat; protoze toto pismenko lze nahradit jakymkoliv jinym pismenkem z jakekoliv jine zakazky (i zakazky jine priority), tak se lze predstavit, ze to takhle udelam po sobe tolikrat, az dosahnu poctu pismenek v bedne a pote mohu provest prelakovani jakoby cele bedny
 modeluji to tedy tak, ze se z behu nahodne vybere krabice s vyse uvedenou PST a pak uz jenom cekam do poctu pismen az se mi nahromadi tyto nahodne vyskyty chyb do poctu jedne krabice a pak ji prelakuji a pokracuji dal
 co se starvation tyce (ze bude pokazde vybrana stejna krabice a dana objednavka nebude nikdy dokoncena), tak vzhledem k nahodnemu vyberu by k ni nemelo dochazet
 

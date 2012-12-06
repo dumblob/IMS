@@ -31,6 +31,8 @@ class WorkingHoursC : public Process
 
 class GrinderC: public Facility
 {
+  private:
+    void ScheduleFailure();
   public:
     /* planned failure */
     unsigned int fail_after;
@@ -40,25 +42,34 @@ class GrinderC: public Facility
     GrinderC(const char *);
     void Output();
     void Seize(Entity *, ServicePriority_t);
-    void scheduleFailure();
-    bool failed();
+};
+
+class GrinderFailureC : public Process
+{
+  private:
+    Facility &fac;
+  public:
+    GrinderFailureC(GrinderC &);
+    void Behavior();
 };
 
 /* fifo batch */
 class Batch: public Process
 {
   protected:
-    Queue q;
+    //Queue q; //FIXME
+    std::list<Entity *> l;
     Facility &fac;
     const int len;
     bool waiting;
     void Behavior();
+    bool Busy();
+    virtual int Duration();
+    virtual int GetFailureIndex();
 
   public:
     Batch(Facility &, unsigned int);
     void Output();
-    virtual int Duration();
-    bool Busy();
     void AddAndPassivate(Process *);
 };
 
