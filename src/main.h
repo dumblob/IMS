@@ -63,7 +63,7 @@ class Batch: public Process
     void Behavior();
     bool Busy();
     virtual int Duration();
-    virtual int GetFailureIndex();
+    virtual bool ThisCrateFailed();
 
   public:
     bool waiting;
@@ -79,8 +79,6 @@ class Order: public Process
     void Behavior();
   public:
     unsigned int id;
-    //Order(int _count, Priority_t _prior) :
-    //  Priority(_prior), count(_count)
     Order(Priority_t, int);
     static void Alloc(Priority_t, int);
 };

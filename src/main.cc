@@ -48,6 +48,23 @@ class PlotterBatchC : public Batch
   protected:
     /* one plexi sheet insist 75 minutes of cutting */
     int Duration() { return 75 + Uniform(25, 55); };
+    bool ThisCrateFailed()
+    {
+      //FIXME update doc
+      //FIXME po dobu vyroby se kladlo vysoke usili o vylepseni rezaciho cyklu,
+      //  aby byla eliminovana vysoka ztratovost laser ma z principu
+      //    chybovost 0%
+      //  avsak zlabky se musely dale frezovat
+      //  automaticka vymena nastroje (laser a freza) trvala cca stejne
+      //    dlouhou dobu jako vymena dvou frezovacich hlavic na zlabky a
+      //    rezani desky
+      //  rezani laserem vsak trvalo cca o 20 minut delsi dobu nez frezovani
+      //  problemem vsak bylo, ze obrousit takto hladke hrany zabralo delsi
+      //    dobu brusicovi (a to 10..15 namisto 8..12)
+      /* cca 20% of cutted letters were cracked and needed to be cut
+         again from new plexiglass desk */
+      return Random() < 0.20;
+    }
   public:
     PlotterBatchC(Facility &_fac, unsigned int _len) : Batch(_fac, _len) { }
   /* at least (PLEXI_SHEET_PARTS / CRATE_VOL_MAX) crates are needed for
@@ -59,19 +76,11 @@ class PaintshopBatchC : public Batch
 {
   protected:
     int Duration() { return Uniform(45, 65); };
-    //FIXME ...
-    //void ThisCrateFailed()
-    //{
-    //  return Random() < (1.0 / 2 / CRATE_VOL_MAX)
-    //}
-    int GetFailureIndex()
+    bool ThisCrateFailed()
     {
-      /* does the lackquer failure occured in some crate? */
-      if (Random() < (1.0 / 2 / CRATE_VOL_MAX))
-        /* index into queue pointing to failed crate */
-        return Random() * len;
-      else
-        return -1;
+      //FIXME update doc
+      /* 1 to 2 bad varnished letters per 2 batches */
+      return Random() < (1.0 / 2 / CRATE_VOL_MAX);
     }
   public:
     PaintshopBatchC(Facility &_fac, unsigned int _len) :
@@ -222,29 +231,26 @@ void Batch::Behavior()
       Seize(fac);
       waiting = true;  //FIXME tohle dat do dokumentace implementace
       Wait(Duration());
-      Release(fac);
       waiting = false;
+      Release(fac);
 
-      int x = GetFailureIndex();
-      Entity *failure_item = NULL;
-      Entity *item = NULL;
+      Queue fail_q;
 
       /* descending, although no process can switch context and change
          the len in between */
       for (int i = len; i > 0; --i)
       {
-        item = q.GetFirst();
+        Entity *item = q.GetFirst();
 
-        //FIXME ...
-        if (x == i)
-          failure_item = item;
+        if (ThisCrateFailed())
+          fail_q.InsLast(item);
         else
           item->Activate();
       }
 
       /* the failed crate has sort of highest priority */
-      if (failure_item != NULL)
-        q.InsFirst(failure_item);
+      while (! fail_q.Empty())
+        q.InsFirst(fail_q.GetFirst());
     }
 
     if (! Busy()) Passivate();
@@ -270,9 +276,9 @@ int Batch::Duration()
   return 0;
 }
 
-int Batch::GetFailureIndex()
+bool Batch::ThisCrateFailed()
 {
-  return -1;
+  return false;
 }
 
 bool Batch::Busy()
@@ -373,7 +379,7 @@ void Crate::Behavior()
   /* each letter takes its own time */
   Seize(Grinder);
   for (int i = 0; i < CRATE_VOL_MAX; ++i)
-    Wait(Uniform(9, 13));
+    Wait(Uniform(8, 12));
   Release(Grinder);
 
   /* 9 paint layers */
@@ -423,8 +429,8 @@ int main()
   //FIXME nasimulovat laser (tzn. misto vyrezani laser, coz je ve vysledku rychlejsi, ale
   //  hlavne jich neni pred grinderem 0..50% zahozenych, nybrz 0..10%)
 
-  /* 2 weeks */
-  Init(0, (4 * 7) * 24 * 60);
+  /* few weeks/months */
+  Init(0, 365.25 * 24 * 60);
   Generator *G = new Generator(Order::Alloc);
   WorkingHoursC *WorkingHours = new WorkingHoursC(*G);
   Run();
