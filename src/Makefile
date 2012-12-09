@@ -23,19 +23,36 @@ $(EXE): $(OBJ)
 	$(CC) $(CFLAGS) -O2 -c $<
 
 run:
-	./$(EXE)
+	./$(EXE) 12 test  # months experiment_id_prefix
+
+exp1: distclean all
+	rm -f exp1b.dat
+	for x in $(shell seq 3 3 $$((12*3))); do ./simulator "$$x" exp1; done
+	gnuplot exp1.gnuplot
+	@echo
+
+exp2: CFLAGS += -DLASER
+exp2: distclean all
+	rm -f exp2b.dat
+	for x in $(shell seq 3 3 $$((12*3))); do ./simulator "$$x" exp2; done
+	gnuplot exp2.gnuplot
+	@echo
 
 submit: submit_zip
 submit_zip: doc clean
 	zip -q $(SUB).zip -9 * \
 		--exclude $(EXE) \
-		--exclude '*.o'
+		--exclude '*.o' \
+		--exclude 'test*.dat' \
+		--exclude '*.xcf' \
+		--exclude 'bose0.jpg' \
+		--exclude 'sequence_diagram.odg'
 
 clean:
 	rm -f $(OBJ) $(SUB).zip
 
 distclean: clean
-	rm -f $(EXE) $(DOCNAME).pdf
+	rm -f $(EXE) $(DOCNAME).pdf *.dat
 
 doc:
 	pandoc -S -s --toc -N --section-divs --no-tex-ligatures \

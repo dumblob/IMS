@@ -8,11 +8,12 @@
 
 #include <simlib.h>
 #include <iostream>
-#include <assert.h>
-#include <stdio.h>
-#include <math.h>
+#include <fstream>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 #include "main.h"
-//#include <fstream>
 
 int MAX(double x, double y) { return (x > y) ? x : y; }
 int MIN(double x, double y) { return (y > x) ? x : y; }
@@ -22,19 +23,22 @@ const unsigned int WORKING_DAYS_IN_WEEK = 5;
 /* service priority */
 const unsigned int NON_WORKING_HOURS_SERV_PRIOR = 10;
 const unsigned int GRINDER_FAILURE_SERV_PRIOR = 5;
-/* the mean order volume */
+/* mean of order volume */
 const unsigned int ORDINARY_ORDER = 60;
-/* process (queue) priority */
-const unsigned int MAX_ORDER_PRIOR = 4;
+/* max process (queue) priority */
+const unsigned int MAX_ORDER_PRIOR = 3;
 /* letters needed for one advertisement */
 const unsigned int ADVERT_LETTERS = 4;
 /* volume (in letters) of one crate */
 const unsigned int CRATE_VOL_MAX = 8;
+#ifdef LASER
+const unsigned int PLEXI_SHEET_PARTS = 84;
+#else
 const unsigned int PLEXI_SHEET_PARTS = 68;
+#endif
 const unsigned int COMPLETION_EMPLOEES = 2;
 const unsigned int STAKES_CAPACITY = 48;
 unsigned int OrderID = 0;
-Histogram Table0("Muj nazev", 0, 0.1, 20); //FIXME
 
 Facility Plotter("Plexiglass plotter");
 GrinderC Grinder("Plexiglass grinder");
@@ -42,28 +46,34 @@ Facility Paintshop("Plexiglass letters paintshop");
 Facility Desks[COMPLETION_EMPLOEES];
 GrinderFailureC GrinderFailure(Grinder);
 
+Histogram Hist00("Average time to process 1 order", 0, 0.1, 10000);
+Histogram Hist01("Average time in Plotteru", 0, 0.1, 10000);
+Histogram Hist02("Average time in Grinderu", 0, 0.1, 10000);
+Histogram Hist03("Average time in Paintshopu", 0, 0.1, 10000);
+Histogram Hist04("Average time in one of Desks", 0, 0.1, 10000);
+Histogram Hist05("Average time of processing of 1 Crate", 0, 0.1, 10000);
+
 /** PlotterBatchC */
 class PlotterBatchC : public Batch
 {
   protected:
+#ifdef LASER
+    /* about 22 mins longer than without laser */
+    int Duration() { return 75 + 22 + Uniform(25, 55); };
+#else
     /* one plexi sheet insist 75 minutes of cutting */
     int Duration() { return 75 + Uniform(25, 55); };
+#endif
     bool ThisCrateFailed()
     {
-      //FIXME update doc
-      //FIXME po dobu vyroby se kladlo vysoke usili o vylepseni rezaciho cyklu,
-      //  aby byla eliminovana vysoka ztratovost laser ma z principu
-      //    chybovost 0%
-      //  avsak zlabky se musely dale frezovat
-      //  automaticka vymena nastroje (laser a freza) trvala cca stejne
-      //    dlouhou dobu jako vymena dvou frezovacich hlavic na zlabky a
-      //    rezani desky
-      //  rezani laserem vsak trvalo cca o 20 minut delsi dobu nez frezovani
-      //  problemem vsak bylo, ze obrousit takto hladke hrany zabralo delsi
-      //    dobu brusicovi (a to 10..15 namisto 8..12)
+#ifdef LASER
+      /* no failures */
+      return false;
+#else
       /* cca 20% of cutted letters were cracked and needed to be cut
          again from new plexiglass desk */
       return Random() < 0.20;
+#endif
     }
   public:
     PlotterBatchC(Facility &_fac, unsigned int _len) : Batch(_fac, _len) { }
@@ -75,17 +85,17 @@ class PlotterBatchC : public Batch
 class PaintshopBatchC : public Batch
 {
   protected:
-    int Duration() { return Uniform(45, 65); };
+    int Duration() { return Uniform(55, 85); };
     bool ThisCrateFailed()
     {
-      //FIXME update doc
-      /* 1 to 2 bad varnished letters per 2 batches */
-      return Random() < (1.0 / 2 / CRATE_VOL_MAX);
+      /* 0 to 2 bad varnished letters per 2 batches */
+      return Random() < (Uniform(0, 2) / 2 /
+          trunc(STAKES_CAPACITY / CRATE_VOL_MAX));
     }
   public:
     PaintshopBatchC(Facility &_fac, unsigned int _len) :
       Batch(_fac, _len) { }
-} PaintshopBatch(Paintshop, STAKES_CAPACITY / CRATE_VOL_MAX);
+} PaintshopBatch(Paintshop, trunc(STAKES_CAPACITY / CRATE_VOL_MAX));
 
 /** WorkingHoursC */
 WorkingHoursC::WorkingHoursC(Generator &_g) :
@@ -125,7 +135,6 @@ void WorkingHoursC::Behavior()
       Wait(WORKING_HOURS_N * 60);
 
       generator.sleeping = true;
-      //FIXME tohle dat do studie k batch reseni
       /* no need to pause plotter, because generator is paused */
       PaintshopBatch.waiting = true;
       SEIZE_ALL_FACILITIES;
@@ -151,8 +160,8 @@ void Generator::Behavior()
 {
   if (! sleeping)
   {
-    /* generate new order (priority, order_volume) */
-    alloc(MIN(Exponential(MAX_ORDER_PRIOR / 3), MAX_ORDER_PRIOR),
+    /* generate order (priority, order_volume); most orders have prior. 0 */
+    alloc(MIN(Exponential(0.5), MAX_ORDER_PRIOR),
         MAX(Exponential(ORDINARY_ORDER), 1));
   }
 
@@ -175,7 +184,6 @@ GrinderC::GrinderC(const char *_s) :
 
 void GrinderC::Output()
 {
-  //FIXME merit tohle?
   Facility::Output();
 }
 
@@ -229,7 +237,7 @@ void Batch::Behavior()
     if (Busy())
     {
       Seize(fac);
-      waiting = true;  //FIXME tohle dat do dokumentace implementace
+      waiting = true;
       Wait(Duration());
       waiting = false;
       Release(fac);
@@ -265,7 +273,6 @@ Batch::Batch(Facility &_fac, unsigned int _len) :
 
 void Batch::Output()
 {
-  //FIXME merit tohle?
   std::cout << "BATCH len " << len << "\n";
   Process::Output();
   q.Output();
@@ -289,7 +296,6 @@ bool Batch::Busy()
 void Batch::AddAndPassivate(Process *item)
 {
   q.InsLast(item);
-  //FIXME dat do dokumentace
   if (! waiting) Activate();
   item->Passivate();
 }
@@ -329,7 +335,7 @@ void print_duration(double m)
 /** Order */
 void Order::Behavior()
 {
-  int t = Time;
+  double t = Time;
 
   /* crates are for single letters; one advert is from 4 letters */
   int crates = (count * 4) / CRATE_VOL_MAX +
@@ -348,7 +354,6 @@ void Order::Behavior()
   {
     Passivate();
     ++handled_crates;
-    // FIXME otestovat, zdali to vubec funguje
   }
 
   /* order correctly served */
@@ -356,13 +361,16 @@ void Order::Behavior()
     << " served in ";
   print_duration(Time - t);
   std::cout << "\n";
+
+  Print("%d %lf\n", count, Time - t);
+  Hist00(Time - t);
 }
 
 Order::Order(Priority_t _prior, int _count) :
   Process(_prior), count(_count), id(OrderID++)
 {
-  std::cerr << "NEW order [" << id << "] for " << _count <<
-    " items with queue prior " << (int)_prior << "\n";//FIXME
+  std::cout << "NEW order [" << id << "] for " << _count <<
+    " items with queue prior " << (int)_prior << "\n";
   Activate();
 }
 
@@ -374,14 +382,25 @@ void Order::Alloc(Entity::Priority_t _prior, int _count)
 /** Crate */
 void Crate::Behavior()
 {
-  PlotterBatch.AddAndPassivate(this);
+  double t_whole = Time;
 
+  double t_plotter = Time;
+  PlotterBatch.AddAndPassivate(this);
+  t_plotter = Time - t_plotter;
+
+  double t_grinder = Time;
   /* each letter takes its own time */
   Seize(Grinder);
   for (int i = 0; i < CRATE_VOL_MAX; ++i)
+#ifdef LASER
+    Wait(Uniform(10, 15));
+#else
     Wait(Uniform(8, 12));
+#endif
   Release(Grinder);
+  t_grinder = Time - t_grinder;
 
+  double t_paintshop = Time;
   /* 9 paint layers */
   for (int i = 0; i < 9; ++i)
   {
@@ -392,15 +411,24 @@ void Crate::Behavior()
 
   /* wait for final paint dry; -60 because we already waited that long */
   Wait(Uniform(20, 24) * 60 -60);
+  t_paintshop = Time - t_paintshop;
 
   /* get some free desk */
   int x = int(COMPLETION_EMPLOEES * Random());
 
+  double t_desks = Time;
   Seize(Desks[x]);
   /* finish adverts from the whole crate */
   for (int i = 0; i < CRATE_VOL_MAX / ADVERT_LETTERS; ++i)
     Wait(Uniform(55, 70));
   Release(Desks[x]);
+
+  /* now, it is an atomic operation (without context switching) */
+  Hist01(t_plotter);
+  Hist02(t_grinder);
+  Hist03(t_paintshop);
+  Hist04(Time - t_desks);
+  Hist05(Time - t_whole);
 
   /* we are done */
   parent->Activate();
@@ -412,37 +440,69 @@ Crate::Crate(Priority_t _prior, Order *_parent) :
   Activate();
 }
 
-int main()
+/**
+ * argv[1] count of months to simulate
+ * argv[2] prefix for simulation files
+ */
+int main(int argc, char *argv[])
 {
-  //std::ifstream f("nazev_souboru.txt");
-  //if (!f) { std::cerr << "fail" << std::endl; return 1; }
-  //std::cout << "Hello" << std::endl;
+  SetOutput((std::string(argv[2]) + "a.dat").c_str());
+  Print("# experiment XYZ\n");
 
-  //SetOutput(stdout);
-  //Print("some fucking desc\n");
+  /* order duration */
+  std::ofstream orderdur((std::string(argv[2]) + "b.dat").c_str(), std::ios::app);
+  if (! orderdur.is_open())
+  {
+    std::cerr << "failed to open orderdur" << std::endl;
+    return 1;
+  }
+
+  /* facility congestion */
+  std::ofstream faccongestion((std::string(argv[2]) + "c.dat").c_str(), std::ios::out);
+  if (! faccongestion.is_open())
+  {
+    std::cerr << "failed to open faccongestion" << std::endl;
+    return 1;
+  }
 
   //Debug(5);
 
   /* 1 crate can contain only letters for whole advertisements */
   assert(CRATE_VOL_MAX % ADVERT_LETTERS == 0);
 
-  //FIXME nasimulovat laser (tzn. misto vyrezani laser, coz je ve vysledku rychlejsi, ale
-  //  hlavne jich neni pred grinderem 0..50% zahozenych, nybrz 0..10%)
+  /* how many months? */
+  double dur = (365.25 / 12) * atol(argv[1]) * 24 * 60;
 
-  /* few weeks/months */
-  Init(0, 365.25 * 24 * 60);
+  RandomSeed(time(NULL));
+  Init(0, (long)dur);
   Generator *G = new Generator(Order::Alloc);
   WorkingHoursC *WorkingHours = new WorkingHoursC(*G);
   Run();
+
+  /* average time of processing of 1 order X duration of that manufacture run */
+  orderdur << (long)dur << " " << Hist00.stat.MeanValue() << "\n";
+  std::cout << "average time to process 1 order: " <<
+    Hist00.stat.MeanValue() << "(";
+  print_duration(Hist00.stat.MeanValue());
+  std::cout << ")\n";
+
+  /* average load of facilities in time */
+  faccongestion << "0 Plotter "   << (Hist01.stat.MeanValue() / Hist05.stat.MeanValue()) * 100 << "\n";
+  faccongestion << "1 Grinder "   << (Hist02.stat.MeanValue() / Hist05.stat.MeanValue()) * 100 << "\n";
+  faccongestion << "2 Paintshop " << (Hist03.stat.MeanValue() / Hist05.stat.MeanValue()) * 100 << "\n";
+  faccongestion << "3 Desks "     << (Hist04.stat.MeanValue() / Hist05.stat.MeanValue()) * 100 << "\n";
+
+#ifdef DEBUGG
   Print("\n\n");
 
-  //tbl00.Output();
+  tbl00.Output();
   Plotter.Output();
   Print("Plotter batch\n");
   PlotterBatch.Output();
   Print("\n\n");
 
   Grinder.Output();
+  GrinderFailure.Output();
   Print("\n\n");
 
   Paintshop.Output();
@@ -456,6 +516,10 @@ int main()
     Desks[i].Output();
     Print("\n\n");
   }
+#endif
+
+  orderdur.close();
+  faccongestion.close();
 
   return 0;
 }
